@@ -106,7 +106,7 @@ void getEdgeVariance(Mat & inputImg, Mat & showEdgesImg, float & varianceSquared
 
 void getColorSepE(int & colorSep_E, int & hardConstraints_E);
 
-typedef Graph<int,int,int> GraphType;
+typedef Graph<int, int, int> GraphType;
 GraphType *myGraph;
 
 
@@ -119,34 +119,43 @@ int main(int argc, char *argv[])
     char * strokesFileName = NULL;
     char * outputFileName = NULL;
 
-    for(int arg = 1; arg < argc; ++arg)
+    for (int arg = 1; arg < argc; ++arg)
     {
-        if (argv[arg] == string("--bins") && argc > arg + 1) {
+        if (argv[arg] == string("--bins") && argc > arg + 1)
+        {
             numBinsPerChannel = atoi(argv[++arg]);
         }
-        else if (argv[arg] == string("--slope") && argc > arg + 1) {
+        else if (argv[arg] == string("--slope") && argc > arg + 1)
+        {
             bha_slope = (float)atof(argv[++arg]);
         }
-        else if (argv[arg] == string("--fg-label") && argc > arg + 1) {
+        else if (argv[arg] == string("--fg-label") && argc > arg + 1)
+        {
             fgLabel = atoi(argv[++arg]);
         }
-        else if (argv[arg] == string("--bg-label") && argc > arg + 1) {
+        else if (argv[arg] == string("--bg-label") && argc > arg + 1)
+        {
             bgLabel = atoi(argv[++arg]);
         }
-        else if (argv[arg] == string("--output") && argc > arg + 1) {
+        else if (argv[arg] == string("--output") && argc > arg + 1)
+        {
             outputFileName = argv[++arg];
         }
-        else if (argv[arg] == string("--help")) {
+        else if (argv[arg] == string("--help"))
+        {
             printHelp();
             return 0;
         }
-        else if (!imgFileName) {
+        else if (!imgFileName)
+        {
             imgFileName = argv[arg];
         }
-        else if (!strokesFileName) {
+        else if (!strokesFileName)
+        {
             strokesFileName = argv[arg];
         }
-        else {
+        else
+        {
             cout << "Invalid argument " << argv[arg] << endl;
         }
     }
@@ -158,78 +167,78 @@ int main(int argc, char *argv[])
         printHelp();
         return -1;
     }
-    
+
     cout << "Input image: " << imgFileName << endl;
     cout << "Strokes file: " << strokesFileName << endl;
     cout << "FG label: " << fgLabel << ", BG label: " << bgLabel << endl;
-	cout << "Using " << numBinsPerChannel <<  " bins per channel " << endl; 
-	cout << "Using colorSep_slope = " << bha_slope << endl;
-	
-	if (init(imgFileName)==-1)
-	{
-		cout <<  "Could not initialize" << endl ;
-		return -1;
-	}
-    
-	if (loadStrokes(strokesFileName, fgScribbleMask, bgScribbleMask)==-1)
-	{
-		cout <<  "Could not load scribbles" << std::endl;
+    cout << "Using " << numBinsPerChannel << " bins per channel " << endl;
+    cout << "Using colorSep_slope = " << bha_slope << endl;
+
+    if (init(imgFileName) == -1)
+    {
+        cout << "Could not initialize" << endl;
         return -1;
-	}
+    }
+
+    if (loadStrokes(strokesFileName, fgScribbleMask, bgScribbleMask) == -1)
+    {
+        cout << "Could not load scribbles" << std::endl;
+        return -1;
+    }
 
     // Segment
     cout << "\n--- Segmenting ---" << endl;
-	cout << "Setting the hard constraints..." << endl;
-	for(int i=0; i<inputImg.rows; i++)
-	{
-		for(int j=0; j<inputImg.cols; j++) 
-		{
-			// this is the node id for the current pixel
-			GraphType::node_id currNodeId = i * inputImg.cols + j;
-	
-			// add hard constraints based on scribbles
-			if (fgScribbleMask.at<uchar>(i,j) == 255)
-				myGraph->add_tweights(currNodeId,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5),0);
-			else if (bgScribbleMask.at<uchar>(i,j) == 255)
-				myGraph->add_tweights(currNodeId,0,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5));
-		}
-	}
-	cout << "Maxflow..." << endl;
-	int flow = myGraph -> maxflow();
-	cout << "Done maxflow..." << flow << endl;
+    cout << "Setting the hard constraints..." << endl;
+    for (int i = 0; i < inputImg.rows; i++)
+    {
+        for (int j = 0; j < inputImg.cols; j++)
+        {
+            // this is the node id for the current pixel
+            GraphType::node_id currNodeId = i * inputImg.cols + j;
 
-	int colorSep_E, hardConstraints_E;
-	getColorSepE(colorSep_E, hardConstraints_E);
-	cout << "Hard Constraints violation cost: " << hardConstraints_E << endl;
-	cout << "Color Sep Term: " << colorSep_E << endl;
-	cout << "Edge cost: " << flow - colorSep_E - hardConstraints_E << endl;
+            // add hard constraints based on scribbles
+            if (fgScribbleMask.at<uchar>(i, j) == 255)
+                myGraph->add_tweights(currNodeId, (int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5), 0);
+            else if (bgScribbleMask.at<uchar>(i, j) == 255)
+                myGraph->add_tweights(currNodeId, 0, (int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5));
+        }
+    }
+    cout << "Maxflow..." << endl;
+    int flow = myGraph->maxflow();
+    cout << "Done maxflow..." << flow << endl;
 
-	// this is where we store the results
-	segMask = 0;
-	inputImg.copyTo(segShowImg);
-	//inputImg.copyTo(showImg);
+    int colorSep_E, hardConstraints_E;
+    getColorSepE(colorSep_E, hardConstraints_E);
+    cout << "Hard Constraints violation cost: " << hardConstraints_E << endl;
+    cout << "Color Sep Term: " << colorSep_E << endl;
+    cout << "Edge cost: " << flow - colorSep_E - hardConstraints_E << endl;
 
-	// empty scribble masks are ready to record additional scribbles for additional hard constraints
-	// to be used next time
-	fgScribbleMask = 0;
-	bgScribbleMask = 0;
+    // this is where we store the results
+    segMask = 0;
+    inputImg.copyTo(segShowImg);
+    //inputImg.copyTo(showImg);
 
-	// copy the segmentation results on to the result images
-	for (int i = 0; i<inputImg.rows * inputImg.cols; i++)
-	{
-		// if it is foreground - color blue
-		if (myGraph->what_segment((GraphType::node_id)i ) == GraphType::SOURCE)
-		{
-			segMask.at<uchar>(i/inputImg.cols, i%inputImg.cols) = 255;
-			(uchar)segShowImg.at<Vec3b>(i/inputImg.cols, i%inputImg.cols)[2] =  200;
-		}
-		// if it is background - color red
-		else
-		{
-			segMask.at<uchar>(i/inputImg.cols, i%inputImg.cols) = 0;
-			(uchar)segShowImg.at<Vec3b>(i/inputImg.cols, i%inputImg.cols)[0] =  200;
-		}
-	}
+    // empty scribble masks are ready to record additional scribbles for additional hard constraints
+    // to be used next time
+    fgScribbleMask = 0;
+    bgScribbleMask = 0;
+
+    // copy the segmentation results on to the result images
+    for (int i = 0; i < inputImg.rows * inputImg.cols; i++)
+    {
+        // if it is foreground - color blue
+        if (myGraph->what_segment((GraphType::node_id)i) == GraphType::SOURCE)
+        {
+            segMask.at<uchar>(i / inputImg.cols, i%inputImg.cols) = 255;
+            (uchar)segShowImg.at<Vec3b>(i / inputImg.cols, i%inputImg.cols)[2] = 200;
+        }
+        // if it is background - color red
+        else
+        {
+            segMask.at<uchar>(i / inputImg.cols, i%inputImg.cols) = 0;
+            (uchar)segShowImg.at<Vec3b>(i / inputImg.cols, i%inputImg.cols)[0] = 200;
+        }
+    }
 
     // Write the segmentation mask to a file
     if (!outputFileName)
@@ -244,11 +253,12 @@ int main(int argc, char *argv[])
     {
         imwrite(outputFileName, segMask);
     }
-	
+
     return 0;
 }
 
-void printHelp() {
+void printHelp()
+{
     cout << "Usage: OneCut imageToSegment strokesFile [OPTIONS]" << endl;
     cout << endl;
     cout << "--fg-label x  : Label used for the foreground in the strokes file" << endl;
@@ -270,293 +280,291 @@ int loadStrokes(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribbleMa
     fgScribbleMask = strokesData == fgLabel;
     bgScribbleMask = strokesData == bgLabel;
 
-	fgScribbleMask.copyTo(fgScribbleMaskAll);
-	bgScribbleMask.copyTo(bgScribbleMaskAll);
-	showImg.setTo(Scalar(0,0,255),fgScribbleMask);
-	showImg.setTo(Scalar(255,0,0),bgScribbleMask);
+    fgScribbleMask.copyTo(fgScribbleMaskAll);
+    bgScribbleMask.copyTo(bgScribbleMaskAll);
+    showImg.setTo(Scalar(0, 0, 255), fgScribbleMask);
+    showImg.setTo(Scalar(255, 0, 0), bgScribbleMask);
 
-	return 0;
+    return 0;
 }
 
 int init(char * imgFileName)
 {
-	// Read the file
+    // Read the file
     inputImg = imread(imgFileName, CV_LOAD_IMAGE_COLOR);
-	showImg = inputImg.clone();
-	segShowImg = inputImg.clone();
+    showImg = inputImg.clone();
+    segShowImg = inputImg.clone();
 
-	// Check for invalid input
-    if(!inputImg.data)
+    // Check for invalid input
+    if (!inputImg.data)
     {
-        cout <<  "Could not open or find the image: " << imgFileName << std::endl;
+        cout << "Could not open or find the image: " << imgFileName << std::endl;
         return -1;
     }
 
-	// this is the mask to keep the user scribbles
-	fgScribbleMask.create(2,inputImg.size,CV_8UC1);
-	fgScribbleMask = 0;
-	bgScribbleMask.create(2,inputImg.size,CV_8UC1);
-	bgScribbleMask = 0;
-	
-	fgScribbleMaskAll.create(2,inputImg.size,CV_8UC1);
-	fgScribbleMaskAll = 0;
-	bgScribbleMaskAll.create(2,inputImg.size,CV_8UC1);
-	bgScribbleMaskAll = 0;
-	
-	segMask.create(2,inputImg.size,CV_8UC1);
-	segMask = 0;
-	showEdgesImg.create(2, inputImg.size, CV_32FC1);
-	showEdgesImg = 0;
-	binPerPixelImg.create(2, inputImg.size,CV_32F);
+    // this is the mask to keep the user scribbles
+    fgScribbleMask.create(2, inputImg.size, CV_8UC1);
+    fgScribbleMask = 0;
+    bgScribbleMask.create(2, inputImg.size, CV_8UC1);
+    bgScribbleMask = 0;
 
-	// get bin index for each image pixel, store it in binPerPixelImg
-	getBinPerPixel(binPerPixelImg, inputImg, numBinsPerChannel, numUsedBins);
+    fgScribbleMaskAll.create(2, inputImg.size, CV_8UC1);
+    fgScribbleMaskAll = 0;
+    bgScribbleMaskAll.create(2, inputImg.size, CV_8UC1);
+    bgScribbleMaskAll = 0;
 
-	// compute the variance of image edges between neighbors
-	getEdgeVariance(inputImg, showEdgesImg, varianceSquared);
-	
-	myGraph = new GraphType(/*estimated # of nodes*/ inputImg.rows * inputImg.cols + numUsedBins, 
-		/*estimated # of edges=11 spatial neighbors and one link to auxiliary*/ 12 * inputImg.rows * inputImg.cols); 
-	GraphType::node_id currNodeId = myGraph -> add_node((int)inputImg.cols * inputImg.rows + numUsedBins);
+    segMask.create(2, inputImg.size, CV_8UC1);
+    segMask = 0;
+    showEdgesImg.create(2, inputImg.size, CV_32FC1);
+    showEdgesImg = 0;
+    binPerPixelImg.create(2, inputImg.size, CV_32F);
 
-	for(int i=0; i<inputImg.rows; i++)
-	{
-		for(int j=0; j<inputImg.cols; j++) 
-		{
-			// this is the node id for the current pixel
-			GraphType::node_id currNodeId = i * inputImg.cols + j;
+    // get bin index for each image pixel, store it in binPerPixelImg
+    getBinPerPixel(binPerPixelImg, inputImg, numBinsPerChannel, numUsedBins);
 
-			// add hard constraints based on scribbles
-			if (fgScribbleMask.at<uchar>(i,j) == 255)
-				myGraph->add_tweights(currNodeId,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5),0);
-			else if (bgScribbleMask.at<uchar>(i,j) == 255)
-				myGraph->add_tweights(currNodeId,0,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5));
-				
-			// You can now access the pixel value with cv::Vec3b
-			float b = (float)inputImg.at<Vec3b>(i,j)[0];
-			float g = (float)inputImg.at<Vec3b>(i,j)[1];
-			float r = (float)inputImg.at<Vec3b>(i,j)[2];
+    // compute the variance of image edges between neighbors
+    getEdgeVariance(inputImg, showEdgesImg, varianceSquared);
 
-			// go over the neighbors
-			for (int si = -NEIGHBORHOOD; si <= NEIGHBORHOOD; si++)
-			{
-				int ni = i+si;
-				// outside the border - skip
-				if ( ni < 0 || ni >= inputImg.rows)
-					continue;
+    myGraph = new GraphType(/*estimated # of nodes*/ inputImg.rows * inputImg.cols + numUsedBins,
+        /*estimated # of edges=11 spatial neighbors and one link to auxiliary*/ 12 * inputImg.rows * inputImg.cols);
+    GraphType::node_id currNodeId = myGraph->add_node((int)inputImg.cols * inputImg.rows + numUsedBins);
 
-				for (int sj = 0; sj <= NEIGHBORHOOD; sj++)
-				{
-					int nj = j+sj;
-					// outside the border - skip
-					if ( nj < 0 || nj >= inputImg.cols)
-						continue;
+    for (int i = 0; i < inputImg.rows; i++)
+    {
+        for (int j = 0; j < inputImg.cols; j++)
+        {
+            // this is the node id for the current pixel
+            GraphType::node_id currNodeId = i * inputImg.cols + j;
 
-					// same pixel - skip
-					// down pointed edge, this edge will be counted as an up edge for the other pixel
-					if (si >= 0 && sj == 0)
-						continue;
+            // add hard constraints based on scribbles
+            if (fgScribbleMask.at<uchar>(i, j) == 255)
+                myGraph->add_tweights(currNodeId, (int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5), 0);
+            else if (bgScribbleMask.at<uchar>(i, j) == 255)
+                myGraph->add_tweights(currNodeId, 0, (int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5));
 
-					// diagonal exceed the radius - skip
-					if ((si*si + sj*sj) > NEIGHBORHOOD*NEIGHBORHOOD) 
-						continue;
+            // You can now access the pixel value with cv::Vec3b
+            float b = (float)inputImg.at<Vec3b>(i, j)[0];
+            float g = (float)inputImg.at<Vec3b>(i, j)[1];
+            float r = (float)inputImg.at<Vec3b>(i, j)[2];
 
-					
-					// this is the node id for the neighbor
-					GraphType::node_id nNodeId = (i+si) * inputImg.cols + (j + sj);
-					
-					float nb = (float)inputImg.at<Vec3b>(i+si,j+sj)[0];
-					float ng = (float)inputImg.at<Vec3b>(i+si,j+sj)[1];
-					float nr = (float)inputImg.at<Vec3b>(i+si,j+sj)[2];
+            // go over the neighbors
+            for (int si = -NEIGHBORHOOD; si <= NEIGHBORHOOD; si++)
+            {
+                int ni = i + si;
+                // outside the border - skip
+                if (ni < 0 || ni >= inputImg.rows)
+                    continue;
 
-					//   ||I_p - I_q||^2  /   2 * sigma^2
-					float currEdgeStrength = exp(-((b-nb)*(b-nb) + (g-ng)*(g-ng) + (r-nr)*(r-nr))/(2*varianceSquared));
-					//float currEdgeStrength = 0;
-					float currDist = sqrt((float)si*(float)si + (float)sj*(float)sj);
+                for (int sj = 0; sj <= NEIGHBORHOOD; sj++)
+                {
+                    int nj = j + sj;
+                    // outside the border - skip
+                    if (nj < 0 || nj >= inputImg.cols)
+                        continue;
 
-					// this is the edge between the current two pixels (i,j) and (i+si, j+sj)
-					currEdgeStrength = ((float)EDGE_STRENGTH_WEIGHT * currEdgeStrength + (float)(1-EDGE_STRENGTH_WEIGHT)) /currDist;
-					int edgeCapacity = /* capacities */ (int) ceil(INT32_CONST*currEdgeStrength + 0.5);
-					//edgeCapacity = 0;
-					myGraph -> add_edge(currNodeId, nNodeId,   edgeCapacity , edgeCapacity);
-					
-				}
-			}
-			// add the adge to the auxiliary node
-			int currBin =  (int)binPerPixelImg.at<float>(i,j);
+                    // same pixel - skip
+                    // down pointed edge, this edge will be counted as an up edge for the other pixel
+                    if (si >= 0 && sj == 0)
+                        continue;
 
-			myGraph -> add_edge(currNodeId, (GraphType::node_id)(currBin + inputImg.rows * inputImg.cols),
-				/* capacities */ (int) ceil(INT32_CONST*bha_slope+ 0.5), (int)ceil(INT32_CONST*bha_slope + 0.5));
-		}
-	}
-	
-	return 0;
+                    // diagonal exceed the radius - skip
+                    if ((si*si + sj*sj) > NEIGHBORHOOD*NEIGHBORHOOD)
+                        continue;
+
+
+                    // this is the node id for the neighbor
+                    GraphType::node_id nNodeId = (i + si) * inputImg.cols + (j + sj);
+
+                    float nb = (float)inputImg.at<Vec3b>(i + si, j + sj)[0];
+                    float ng = (float)inputImg.at<Vec3b>(i + si, j + sj)[1];
+                    float nr = (float)inputImg.at<Vec3b>(i + si, j + sj)[2];
+
+                    //   ||I_p - I_q||^2  /   2 * sigma^2
+                    float currEdgeStrength = exp(-((b - nb)*(b - nb) + (g - ng)*(g - ng) + (r - nr)*(r - nr)) / (2 * varianceSquared));
+                    //float currEdgeStrength = 0;
+                    float currDist = sqrt((float)si*(float)si + (float)sj*(float)sj);
+
+                    // this is the edge between the current two pixels (i,j) and (i+si, j+sj)
+                    currEdgeStrength = ((float)EDGE_STRENGTH_WEIGHT * currEdgeStrength + (float)(1 - EDGE_STRENGTH_WEIGHT)) / currDist;
+                    int edgeCapacity = /* capacities */ (int)ceil(INT32_CONST*currEdgeStrength + 0.5);
+                    //edgeCapacity = 0;
+                    myGraph->add_edge(currNodeId, nNodeId, edgeCapacity, edgeCapacity);
+
+                }
+            }
+            // add the adge to the auxiliary node
+            int currBin = (int)binPerPixelImg.at<float>(i, j);
+
+            myGraph->add_edge(currNodeId, (GraphType::node_id)(currBin + inputImg.rows * inputImg.cols),
+                /* capacities */ (int)ceil(INT32_CONST*bha_slope + 0.5), (int)ceil(INT32_CONST*bha_slope + 0.5));
+        }
+    }
+
+    return 0;
 }
 
-// get bin index for each image pixel, store it in binPerPixelImg
 void getBinPerPixel(Mat & binPerPixelImg, Mat & inputImg, int numBinsPerChannel, int & numUsedBins)
 {
-	// this vector is used to throw away bins that were not used
-	vector<int> occupiedBinNewIdx((int)pow((double)numBinsPerChannel,(double)3),-1);
-	
-	// go over the image
-	int newBinIdx = 0;
-	for(int i=0; i<inputImg.rows; i++)
-		for(int j=0; j<inputImg.cols; j++) 
-		{
-			// You can now access the pixel value with cv::Vec3b
-			float b = (float)inputImg.at<Vec3b>(i,j)[0];
-			float g = (float)inputImg.at<Vec3b>(i,j)[1];
-			float r = (float)inputImg.at<Vec3b>(i,j)[2];
+    // this vector is used to throw away bins that were not used
+    vector<int> occupiedBinNewIdx((int)pow((double)numBinsPerChannel, (double)3), -1);
 
-			// this is the bin assuming all bins are present
-			int bin = (int)(floor(b/256.0 *(float)numBinsPerChannel) + (float)numBinsPerChannel * floor(g/256.0*(float)numBinsPerChannel) 
-				+ (float)numBinsPerChannel * (float)numBinsPerChannel * floor(r/256.0*(float)numBinsPerChannel)); 
+    // go over the image
+    int newBinIdx = 0;
+    for (int i = 0; i < inputImg.rows; i++)
+        for (int j = 0; j < inputImg.cols; j++)
+        {
+            // You can now access the pixel value with cv::Vec3b
+            float b = (float)inputImg.at<Vec3b>(i, j)[0];
+            float g = (float)inputImg.at<Vec3b>(i, j)[1];
+            float r = (float)inputImg.at<Vec3b>(i, j)[2];
 
-			
-			// if we haven't seen this bin yet
-			if (occupiedBinNewIdx[bin]==-1)
-			{
-				// mark it seen and assign it a new index
-				occupiedBinNewIdx[bin] = newBinIdx;
-				newBinIdx ++;
-			}
-			// if we saw this bin already, it has the new index
-			binPerPixelImg.at<float>(i,j) = (float)occupiedBinNewIdx[bin];
-		}
+            // this is the bin assuming all bins are present
+            int bin = (int)(floor(b / 256.0 *(float)numBinsPerChannel) + (float)numBinsPerChannel * floor(g / 256.0*(float)numBinsPerChannel)
+                + (float)numBinsPerChannel * (float)numBinsPerChannel * floor(r / 256.0*(float)numBinsPerChannel));
 
-		double maxBin;
-		minMaxLoc(binPerPixelImg, NULL,&maxBin);
-		numUsedBins = (int) maxBin + 1;
 
-		occupiedBinNewIdx.clear();
-		cout << "Num occupied bins:" << numUsedBins << endl;
+            // if we haven't seen this bin yet
+            if (occupiedBinNewIdx[bin] == -1)
+            {
+                // mark it seen and assign it a new index
+                occupiedBinNewIdx[bin] = newBinIdx;
+                newBinIdx++;
+            }
+            // if we saw this bin already, it has the new index
+            binPerPixelImg.at<float>(i, j) = (float)occupiedBinNewIdx[bin];
+        }
+
+    double maxBin;
+    minMaxLoc(binPerPixelImg, NULL, &maxBin);
+    numUsedBins = (int)maxBin + 1;
+
+    occupiedBinNewIdx.clear();
+    cout << "Num occupied bins:" << numUsedBins << endl;
 }
 
-// compute the variance of image edges between neighbors
 void getEdgeVariance(Mat & inputImg, Mat & showEdgesImg, float & varianceSquared)
 {
-	varianceSquared = 0;
-	int counter = 0;
-	for(int i=0; i<inputImg.rows; i++)
-	{
-		for(int j=0; j<inputImg.cols; j++) 
-		{
-			// You can now access the pixel value with cv::Vec3b
-			float b = (float)inputImg.at<Vec3b>(i,j)[0];
-			float g = (float)inputImg.at<Vec3b>(i,j)[1];
-			float r = (float)inputImg.at<Vec3b>(i,j)[2];
-			for (int si = -NEIGHBORHOOD; si <= NEIGHBORHOOD && si + i < inputImg.rows && si + i >= 0 ; si++)
-			{
-				for (int sj = 0; sj <= NEIGHBORHOOD && sj + j < inputImg.cols ; sj++)
+    varianceSquared = 0;
+    int counter = 0;
+    for (int i = 0; i < inputImg.rows; i++)
+    {
+        for (int j = 0; j < inputImg.cols; j++)
+        {
+            // You can now access the pixel value with cv::Vec3b
+            float b = (float)inputImg.at<Vec3b>(i, j)[0];
+            float g = (float)inputImg.at<Vec3b>(i, j)[1];
+            float r = (float)inputImg.at<Vec3b>(i, j)[2];
+            for (int si = -NEIGHBORHOOD; si <= NEIGHBORHOOD && si + i < inputImg.rows && si + i >= 0; si++)
+            {
+                for (int sj = 0; sj <= NEIGHBORHOOD && sj + j < inputImg.cols; sj++)
 
-				{
-					if ((si == 0 && sj == 0) ||
-						(si == 1 && sj == 0) || 
-						(si == NEIGHBORHOOD && sj == 0))
-						continue;
+                {
+                    if ((si == 0 && sj == 0) ||
+                        (si == 1 && sj == 0) ||
+                        (si == NEIGHBORHOOD && sj == 0))
+                        continue;
 
-					float nb = (float)inputImg.at<Vec3b>(i+si,j+sj)[0];
-					float ng = (float)inputImg.at<Vec3b>(i+si,j+sj)[1];
-					float nr = (float)inputImg.at<Vec3b>(i+si,j+sj)[2];
+                    float nb = (float)inputImg.at<Vec3b>(i + si, j + sj)[0];
+                    float ng = (float)inputImg.at<Vec3b>(i + si, j + sj)[1];
+                    float nr = (float)inputImg.at<Vec3b>(i + si, j + sj)[2];
 
-					varianceSquared+= (b-nb)*(b-nb) + (g-ng)*(g-ng) + (r-nr)*(r-nr); 
-					counter ++;
-					
-				}
-				
-			}
-		}
-	}
-	varianceSquared /= counter;
+                    varianceSquared += (b - nb)*(b - nb) + (g - ng)*(g - ng) + (r - nr)*(r - nr);
+                    counter++;
 
-	// just for visualization
-	for(int i=0; i<inputImg.rows; i++)
-	{
-		for(int j=0; j<inputImg.cols; j++) 
-		{
-			float edgeStrength = 0;
-			// You can now access the pixel value with cv::Vec3b
-			float b = (float)inputImg.at<Vec3b>(i,j)[0];
-			float g = (float)inputImg.at<Vec3b>(i,j)[1];
-			float r = (float)inputImg.at<Vec3b>(i,j)[2];
-			for (int si = -NEIGHBORHOOD; si <= NEIGHBORHOOD && si + i < inputImg.rows && si + i >= 0; si++)
-			{
-				for (int sj = 0; sj <= NEIGHBORHOOD && sj + j < inputImg.cols   ; sj++)
-				{
-					if ((si == 0 && sj == 0) ||
-						(si == 1 && sj == 0) ||
-						(si == NEIGHBORHOOD && sj == 0))
-						continue;
+                }
 
-					float nb = (float)inputImg.at<Vec3b>(i+si,j+sj)[0];
-					float ng = (float)inputImg.at<Vec3b>(i+si,j+sj)[1];
-					float nr = (float)inputImg.at<Vec3b>(i+si,j+sj)[2];
+            }
+        }
+    }
+    varianceSquared /= counter;
 
-					//   ||I_p - I_q||^2  /   2 * sigma^2
-					float currEdgeStrength = exp(-((b-nb)*(b-nb) + (g-ng)*(g-ng) + (r-nr)*(r-nr))/(2*varianceSquared));
-					float currDist = sqrt((float)si*(float)si + (float)sj * (float)sj);
+    // just for visualization
+    for (int i = 0; i < inputImg.rows; i++)
+    {
+        for (int j = 0; j < inputImg.cols; j++)
+        {
+            float edgeStrength = 0;
+            // You can now access the pixel value with cv::Vec3b
+            float b = (float)inputImg.at<Vec3b>(i, j)[0];
+            float g = (float)inputImg.at<Vec3b>(i, j)[1];
+            float r = (float)inputImg.at<Vec3b>(i, j)[2];
+            for (int si = -NEIGHBORHOOD; si <= NEIGHBORHOOD && si + i < inputImg.rows && si + i >= 0; si++)
+            {
+                for (int sj = 0; sj <= NEIGHBORHOOD && sj + j < inputImg.cols; sj++)
+                {
+                    if ((si == 0 && sj == 0) ||
+                        (si == 1 && sj == 0) ||
+                        (si == NEIGHBORHOOD && sj == 0))
+                        continue;
 
-					
-					// this is the edge between the current two pixels (i,j) and (i+si, j+sj)
-					edgeStrength = edgeStrength + ((float)0.95 * currEdgeStrength + (float)0.05) /currDist;
-					
-				}
-			}
-			// this is the avg edge strength for pixel (i,j) with its neighbors
-			showEdgesImg.at<float>(i,j) = edgeStrength;
+                    float nb = (float)inputImg.at<Vec3b>(i + si, j + sj)[0];
+                    float ng = (float)inputImg.at<Vec3b>(i + si, j + sj)[1];
+                    float nr = (float)inputImg.at<Vec3b>(i + si, j + sj)[2];
 
-		}
-	}
-	
-	double maxEdge;
-	Point maxPoint;
-	minMaxLoc(showEdgesImg,NULL,&maxEdge, NULL, &maxPoint);
-	//cout << showEdgesImg.at<float>(maxPoint) << endl;
+                    //   ||I_p - I_q||^2  /   2 * sigma^2
+                    float currEdgeStrength = exp(-((b - nb)*(b - nb) + (g - ng)*(g - ng) + (r - nr)*(r - nr)) / (2 * varianceSquared));
+                    float currDist = sqrt((float)si*(float)si + (float)sj * (float)sj);
+
+
+                    // this is the edge between the current two pixels (i,j) and (i+si, j+sj)
+                    edgeStrength = edgeStrength + ((float)0.95 * currEdgeStrength + (float)0.05) / currDist;
+
+                }
+            }
+            // this is the avg edge strength for pixel (i,j) with its neighbors
+            showEdgesImg.at<float>(i, j) = edgeStrength;
+
+        }
+    }
+
+    double maxEdge;
+    Point maxPoint;
+    minMaxLoc(showEdgesImg, NULL, &maxEdge, NULL, &maxPoint);
+    //cout << showEdgesImg.at<float>(maxPoint) << endl;
 
 }
 
 void getColorSepE(int & colorSep_E, int & hardConstraints_E)
 {
-	colorSep_E = 0;
-	hardConstraints_E = 0;
+    colorSep_E = 0;
+    hardConstraints_E = 0;
 
-	// copy the segmentation results on to the result images
-	for(int i=0; i<inputImg.rows; i++)
-	{
-		for(int j=0; j<inputImg.cols; j++) 
-		{
-			// this is the node id for the current pixel
-			GraphType::node_id currNodeId = i * inputImg.cols + j;
+    // copy the segmentation results on to the result images
+    for (int i = 0; i < inputImg.rows; i++)
+    {
+        for (int j = 0; j < inputImg.cols; j++)
+        {
+            // this is the node id for the current pixel
+            GraphType::node_id currNodeId = i * inputImg.cols + j;
 
-			// auxiliary node 1
-			int currBin =  (int)binPerPixelImg.at<float>(i,j);
-			int auxNodeId = currBin + inputImg.rows * inputImg.cols;
+            // auxiliary node 1
+            int currBin = (int)binPerPixelImg.at<float>(i, j);
+            int auxNodeId = currBin + inputImg.rows * inputImg.cols;
 
 
-			// if it is foreground 
-			if (myGraph->what_segment((GraphType::node_id)currNodeId ) == GraphType::SOURCE)
-			{
-				// but has bg hard constraints
-				if (bgScribbleMaskAll.at<uchar>(i,j) == 255)
-				{
-					hardConstraints_E+=(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5);
-				}
+            // if it is foreground 
+            if (myGraph->what_segment((GraphType::node_id)currNodeId) == GraphType::SOURCE)
+            {
+                // but has bg hard constraints
+                if (bgScribbleMaskAll.at<uchar>(i, j) == 255)
+                {
+                    hardConstraints_E += (int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5);
+                }
 
-				if (myGraph->what_segment((GraphType::node_id)auxNodeId) == GraphType::SINK)
-					colorSep_E += (int) ceil(INT32_CONST*bha_slope+ 0.5);
-			}
-			// if it is background -
-			else
-			{
-				// but has fg hard constraints
-				if (fgScribbleMaskAll.at<uchar>(i,j) == 255)
-				{
-					hardConstraints_E+=(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5);
-				}
-				if (myGraph->what_segment((GraphType::node_id)auxNodeId) == GraphType::SOURCE)
-					colorSep_E += (int) ceil(INT32_CONST*bha_slope+ 0.5);
-			}
-		}
-	}
+                if (myGraph->what_segment((GraphType::node_id)auxNodeId) == GraphType::SINK)
+                    colorSep_E += (int)ceil(INT32_CONST*bha_slope + 0.5);
+            }
+            // if it is background -
+            else
+            {
+                // but has fg hard constraints
+                if (fgScribbleMaskAll.at<uchar>(i, j) == 255)
+                {
+                    hardConstraints_E += (int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5);
+                }
+                if (myGraph->what_segment((GraphType::node_id)auxNodeId) == GraphType::SOURCE)
+                    colorSep_E += (int)ceil(INT32_CONST*bha_slope + 0.5);
+            }
+        }
+    }
 }
