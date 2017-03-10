@@ -169,6 +169,7 @@ int main(int argc, char *argv[])
 {
     char * imgFileName = NULL;
     char * strokesFileName = NULL;
+    char * outputFileName = NULL;
 
     for(int arg = 1; arg < argc; ++arg)
     {
@@ -183,6 +184,9 @@ int main(int argc, char *argv[])
         }
         else if (argv[arg] == string("--bg-label") && argc > arg + 1) {
             bgLabel = atoi(argv[++arg]);
+        }
+        else if (argv[arg] == string("--output") && argc > arg + 1) {
+            outputFileName = argv[++arg];
         }
         else if (argv[arg] == string("--help")) {
             printHelp();
@@ -280,11 +284,16 @@ int main(int argc, char *argv[])
 	}
 
     // Write the segmentation mask to a file
-    char buff[256];
-    buff[0] = '\0';
-    strncat(buff, imgFileName, (unsigned)(strlen(imgFileName) - 4));
-    strcat(buff, "_segmented.png");
-    imwrite(buff, segMask);
+    if (!outputFileName) {
+        char buff[256];
+        buff[0] = '\0';
+        strncat(buff, imgFileName, (unsigned)(strlen(imgFileName) - 4));
+        strcat(buff, "_segmented.png");
+        imwrite(buff, segMask);
+    }
+    else {
+        imwrite(outputFileName, segMask);
+    }
 	
     return 0;
 }
@@ -294,6 +303,7 @@ void printHelp() {
     cout << endl;
     cout << "--fg-label x  : Label used for the foreground in the strokes file" << endl;
     cout << "--bg-label x  : Label used for the background in the strokes file" << endl;
+    cout << "--output x  :  The name of the output file" << endl;
     cout << "--bins x  :  Number of bins per channel" << endl;
     cout << "--slope x  :  Color separator slope" << endl;
 }
