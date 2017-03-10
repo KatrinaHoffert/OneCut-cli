@@ -216,7 +216,6 @@ int main(int argc, char *argv[])
     // this is where we store the results
     segMask = 0;
     inputImg.copyTo(segShowImg);
-    //inputImg.copyTo(showImg);
 
     // empty scribble masks are ready to record additional scribbles for additional hard constraints
     // to be used next time
