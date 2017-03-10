@@ -153,7 +153,7 @@ void getBinPerPixel(Mat & binPerPixelImg, Mat & inputImg, int numBinsPerChannel,
 void getEdgeVariance(Mat & inputImg, Mat & showEdgesImg, float & varianceSquared);
 // keep the scribbles for later
 int keepScribbles(char * imgFileName, Mat & fgScribbleMaskAll, Mat & bgScribbleMaskAll, Mat & segMask, float colorSep, int numBinsPerChannel, float contrastSensitive);
-int loadScribbles(char * imgFileName, Mat & fgScribbleMask, Mat & bgScribbleMask);
+int loadScribbles(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribbleMask);
 void getColorSepE(int & colorSep_E, int & hardConstraints_E);
 
 typedef Graph<int,int,int> GraphType;
@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
     
-	if (loadScribbles(imgFileName, fgScribbleMask, bgScribbleMask)==-1)
+	if (loadScribbles(strokesFileName, fgScribbleMask, bgScribbleMask)==-1)
 	{
 		cout <<  "Could not load scribbles" << std::endl;
         return -1;
@@ -418,48 +418,22 @@ int keepScribbles(char * imgFileName, Mat & fgScribbleMaskAll, Mat & bgScribbleM
 
 
 // load scirbbles
-int loadScribbles(char * imgFileName, Mat & fgScribbleMask, Mat & bgScribbleMask)
+int loadScribbles(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribbleMask)
 {
-	char buff[256];
-	buff[0] = '\0';
-	strncat(buff,imgFileName,(unsigned)(strlen(imgFileName)-4));
-	strcat(buff, "_fg.png");
-	fgScribbleMask = imread(buff,CV_LOAD_IMAGE_GRAYSCALE);
-	if(!fgScribbleMask.data )                              
-    {
-        cout <<  "Could not open or find the fg scribble image: " << buff << std::endl ;
-		// this is the mask to keep the user scribbles
-		fgScribbleMask.create(2,inputImg.size,CV_8UC1);
-		fgScribbleMask = 0;
-		bgScribbleMask.create(2,inputImg.size,CV_8UC1);
-		bgScribbleMask = 0;
-	
+    Mat strokesData = imread(strokesFileName, CV_LOAD_IMAGE_GRAYSCALE);
+
+    if (!strokesData.data) {
+        cout << "Could not open or find the strokes image" << endl;
         return -1;
     }
-	
-	buff[0] = '\0';
-	strncat(buff,imgFileName,(unsigned)(strlen(imgFileName)-4));
-	strcat(buff, "_bg.png");
-	bgScribbleMask = imread(buff,CV_LOAD_IMAGE_GRAYSCALE);
-	if(!bgScribbleMask.data )                              
-    {
-        cout <<  "Could not open or find the bg scribble image: " << buff << std::endl ;
-		// this is the mask to keep the user scribbles
-		fgScribbleMask.create(2,inputImg.size,CV_8UC1);
-		fgScribbleMask = 0;
-		bgScribbleMask.create(2,inputImg.size,CV_8UC1);
-		bgScribbleMask = 0;
-	
-        return -1;
-    }
+
+    fgScribbleMask = strokesData == fgLabel;
+    bgScribbleMask = strokesData == bgLabel;
 
 	fgScribbleMask.copyTo(fgScribbleMaskAll);
 	bgScribbleMask.copyTo(bgScribbleMaskAll);
 	showImg.setTo(Scalar(0,0,255),fgScribbleMask);
 	showImg.setTo(Scalar(255,0,0),bgScribbleMask);
-	
-
-
 
 	return 0;
 }
