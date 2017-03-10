@@ -24,6 +24,14 @@ SLN should work fine for that. It requires the Windows 8.1 target SDK (but shoul
 you have a different version). OpenCV 2 is required and is provided via Nuget. It probably will work
 fine on non-Windows platforms and you'd just have to provide the OpenCV libraries and headers.
 
+MSVS wants to copy all the OpenCV DLLs over, but the only needed ones are:
+
+* `opencv_core310.dll`
+* `opencv_imgcodecs310.dll`
+* `opencv_imgproc310.dll`
+
+Which makes up the release distribution of the program.
+
 ## Licensing
 The original code and my changes uses the BSD 3 clause license (again, refer to README-original.txt).
 The provided sample images are public domain.
