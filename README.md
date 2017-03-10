@@ -15,8 +15,9 @@ changes to allow it to be used in an automated way in line with my research:
 
 ## Download
 If you're just interested in running the program without modifications, [prebuilt binaries are
-available for 32 bit Windows](#TODO). The [Microsoft Visual Studio 2015 C++ redistributible](
-https://www.microsoft.com/en-ca/download/details.aspx?id=48145) is required.
+available for 32 bit Windows](https://github.com/KatrinaHoffert/OneCut-cli/releases/download/1.0/OneCut-cli-1.0.zip).
+The [Microsoft Visual Studio 2015 C++ redistributible](https://www.microsoft.com/en-ca/download/details.aspx?id=48145)
+is required.
 
 ## Sample usage
 This example uses the included sample files, "3063.jpg" and "3063-strokes.png":
