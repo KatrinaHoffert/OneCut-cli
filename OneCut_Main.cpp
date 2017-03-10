@@ -1,4 +1,4 @@
-//Copyright (c) 2014, Lena Gorelick
+//Copyright (c) 2014-2017, Lena Gorelick, Katrina Hoffert
 //All rights reserved.
 //
 //Redistribution and use in source and binary forms, with or without
@@ -46,78 +46,30 @@
 //    volume = {26},
 //    pages = {359--374}}
 //
-//
-//
 //THIS SOFTWARE USES OpenCV 2.4.3 THAT CAN BE DOWNLOADED FROM http://opencv.org
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//##################################################################
-//
-//  USAGE  INSTRUCTIONS
-//
-//	In the command line type:
-//	
-//	OneCut <imageFileName> [<numBinsPerChannel> <colorSep_slope>]
-//
-//	Default values: numBinsPerChannel=64 colorSep_slope= 0.1
-//
-//	Example: OneCut frida_small.jpg 64 0.1
-//	or       OneCut frida_small.jpg 
-//
-//
-//	Once the image is opened you can scribble with left and right
-//	mouse buttons on the object and the background in the 
-//	"Scribble Image" window. Once the scribbles are given you can 
-//	segment the image.You can keep repeatedly adding scribbles and 
-//	segmenting until the result is satisfactory.
-//
-//
-// "Use the following Short Keys:
-//	'q' - quit
-//	's' - segment
-//	'r' - reset (removes all strokes and clears all results)
-//	'k' - keep the scribbles and the segmentation
-//	'l' - load the scribbles
-//	'+' - increase brush stroke radius
-//	'-' - decrease brush stroke radius
-//	'right mouse button drag' - draw blue scribble
-//	'left mouse button drag' - draw red scribble
-//
-//
-#include <iostream> // for standard I/O
-#include <string>   // for strings
-#include <iomanip>  // for controlling float print precision
-#include <sstream>  // string to number conversion
 
-#include <opencv2/imgproc/imgproc.hpp>  // Gaussian Blur
-#include <opencv2/core/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
-#include <opencv2/highgui/highgui.hpp>  // OpenCV window I/O
+#include <iostream>
+#include <string>
+#include <iomanip>
+#include <sstream>
+
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include "graph.h"
 
 using namespace std;
 using namespace cv;
 
-
 // images
 Mat inputImg, showImg, binPerPixelImg, showEdgesImg, segMask, segShowImg;
 // mask
 Mat fgScribbleMask, bgScribbleMask, fgScribbleMaskAll, bgScribbleMaskAll;
 
-// user clicked mouse buttons flags
-bool rButtonDown = false;
-bool lButtonDown = false;
 int numUsedBins = 0;
 float varianceSquared = 0;
 int scribbleRadius = 10;
-
 
 // default arguments
 float bha_slope = 0.5f;
@@ -127,39 +79,35 @@ float EDGE_STRENGTH_WEIGHT = 0.95f;
 int fgLabel = 1;
 int bgLabel = 2;
 
-
 const float INT32_CONST = 1000;
 const float HARD_CONSTRAINT_CONST = 1000;
 
-
 #define NEIGHBORHOOD_4_TYPE 1;
-
 const int NEIGHBORHOOD = NEIGHBORHOOD_4_TYPE;
 
 
 //************************************
 // F u n c t i o n     d e c l a r a t i o n s 
 
+// Print command line usage
 void printHelp();
-// init all images/vars
-int  init(char * imgFileName);
-// clear everything before closing
-void destroyAll();
-// mouse listener
-static void onMouse( int event, int x, int y, int, void* );
-// set bin index for each image pixel, store it in binPerPixelImg
+
+// Init all images/vars
+int init(char * imgFileName);
+
+// Loads the strokes file into the FG/BG scribble masks
+int loadStrokes(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribbleMask);
+
+// Set bin index for each image pixel, store it in binPerPixelImg
 void getBinPerPixel(Mat & binPerPixelImg, Mat & inputImg, int numBinsPerChannel, int & numUsedBins);
+
 // compute the variance of image edges between neighbors
 void getEdgeVariance(Mat & inputImg, Mat & showEdgesImg, float & varianceSquared);
-// keep the scribbles for later
-int keepScribbles(char * imgFileName, Mat & fgScribbleMaskAll, Mat & bgScribbleMaskAll, Mat & segMask, float colorSep, int numBinsPerChannel, float contrastSensitive);
-int loadScribbles(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribbleMask);
+
 void getColorSepE(int & colorSep_E, int & hardConstraints_E);
 
 typedef Graph<int,int,int> GraphType;
-GraphType *myGraph; 
-	
-
+GraphType *myGraph;
 
 
 //***********************************
@@ -223,7 +171,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
     
-	if (loadScribbles(strokesFileName, fgScribbleMask, bgScribbleMask)==-1)
+	if (loadStrokes(strokesFileName, fgScribbleMask, bgScribbleMask)==-1)
 	{
 		cout <<  "Could not load scribbles" << std::endl;
         return -1;
@@ -284,14 +232,16 @@ int main(int argc, char *argv[])
 	}
 
     // Write the segmentation mask to a file
-    if (!outputFileName) {
+    if (!outputFileName)
+    {
         char buff[256];
         buff[0] = '\0';
         strncat(buff, imgFileName, (unsigned)(strlen(imgFileName) - 4));
         strcat(buff, "_segmented.png");
         imwrite(buff, segMask);
     }
-    else {
+    else
+    {
         imwrite(outputFileName, segMask);
     }
 	
@@ -308,127 +258,7 @@ void printHelp() {
     cout << "--slope x  :  Color separator slope" << endl;
 }
 
-// mouse listener
-static void onMouse( int event, int x, int y, int, void* )
-{
-	//cout << "On Mouse: (" << x << "," << y << ")" <<endl;
-	
-
-	if (event == CV_EVENT_LBUTTONDOWN)
-    {
-		lButtonDown = true;
-        
-    }
-    else if (event == CV_EVENT_RBUTTONDOWN)
-    {
-		rButtonDown = true;
-		
-    }
-	else if (event == CV_EVENT_LBUTTONUP)
-	{
-		lButtonDown = false;
-	}
-	else if (event == CV_EVENT_RBUTTONUP)
-	{
-		rButtonDown = false;
-	}
-    else if (event == CV_EVENT_MOUSEMOVE)
-	{
-		if (rButtonDown)
-		{
-			// scribble the background
-
-			circle(bgScribbleMask,Point(x,y),scribbleRadius, 255,-1);
-			circle(bgScribbleMaskAll,Point(x,y),scribbleRadius, 255,-1);
-			circle(showImg,Point(x,y),scribbleRadius, CV_RGB(0,0,255),-1);
-
-		}
-		else if (lButtonDown)
-		{
-			// scribble the foreground
-
-			circle(fgScribbleMask,Point(x,y),scribbleRadius, 255,-1);
-			circle(fgScribbleMaskAll,Point(x,y),scribbleRadius, 255,-1);
-			circle(showImg,Point(x,y),scribbleRadius, CV_RGB(255,0,0),-1);
-
-			//fgScribbleMask.at<char>(y,x)=(char)255;
-			// set variables using mask
-			//showImg.setTo(redColorElement,fgScribbleMask);
-
-			//showImg.at<Vec3b>(y,x)[0] = 0;
-			//showImg.at<Vec3b>(y,x)[1] = 0;
-			//showImg.at<Vec3b>(y,x)[2] = 255;
-		}
-
-	}
-}
-
-// clear everything before closing
-void destroyAll()
-{
-	// destroy all windows
-	destroyWindow("Input Image");
-	destroyWindow("Scribble Image");
-	destroyWindow("Bin Per Pixel");
-	destroyWindow("Edges");
-	destroyWindow("bg mask");
-	destroyWindow("fg mask");
-	destroyWindow("Segmentation Mask");
-	destroyWindow("Segmentation Image");
-
-	// clear all data
-	fgScribbleMask.release();
-	bgScribbleMask.release();
-	inputImg.release();
-	showImg.release();
-	showEdgesImg.release();
-	binPerPixelImg.release();
-	segMask.release();
-	segShowImg.release();
-
-	delete myGraph;
-	
-
-}
-
-// keep scirbbles for later
-int keepScribbles(char * imgFileName, Mat & fgScribbleMaskAll, Mat & bgScribbleMaskAll, Mat & segMask, float colorSep, int numBinsPerChannel, float contrastSensitive)
-{
-	char buff[256];
-	buff[0] = '\0';
-	strncat(buff,imgFileName,(unsigned)(strlen(imgFileName)-4));
-	strcat(buff, "_fg.png");
-	imwrite(buff,fgScribbleMaskAll);
-	
-
-	buff[0] = '\0';
-	strncat(buff,imgFileName,(unsigned)(strlen(imgFileName)-4));
-	strcat(buff, "_bg.png");
-	imwrite(buff,bgScribbleMaskAll);
-	
-	buff[0] = '\0';
-	strncat(buff,imgFileName,(unsigned)(strlen(imgFileName)-4));
-	strcat(buff,"_");
-	char tempBuff[20];
-	int n = sprintf(tempBuff,"%4.2f",colorSep);
-	strcat(buff, tempBuff);
-	strcat(buff, "colorSep");
-	strcat(buff,"_");
-	strcat(buff, std::to_string(numBinsPerChannel).c_str());
-	strcat(buff, "bins");
-	strcat(buff,"_");
-	n = sprintf(tempBuff,"%4.2f",contrastSensitive);
-	strcat(buff, tempBuff);
-	strcat(buff, "contrast");
-	strcat(buff, "_mask.png");
-	imwrite(buff,segMask);
-	
-	return 0;
-}
-
-
-// load scirbbles
-int loadScribbles(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribbleMask)
+int loadStrokes(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribbleMask)
 {
     Mat strokesData = imread(strokesFileName, CV_LOAD_IMAGE_GRAYSCALE);
 
@@ -448,22 +278,17 @@ int loadScribbles(char * strokesFileName, Mat & fgScribbleMask, Mat & bgScribble
 	return 0;
 }
 
-
-
-// init all images/vars
 int init(char * imgFileName)
 {
 	// Read the file
-    inputImg = imread(imgFileName, CV_LOAD_IMAGE_COLOR);   
+    inputImg = imread(imgFileName, CV_LOAD_IMAGE_COLOR);
 	showImg = inputImg.clone();
 	segShowImg = inputImg.clone();
 
-	
-
 	// Check for invalid input
-    if(!inputImg.data )                              
+    if(!inputImg.data)
     {
-        cout <<  "Could not open or find the image: " << imgFileName << std::endl ;
+        cout <<  "Could not open or find the image: " << imgFileName << std::endl;
         return -1;
     }
 
@@ -484,7 +309,6 @@ int init(char * imgFileName)
 	showEdgesImg = 0;
 	binPerPixelImg.create(2, inputImg.size,CV_32F);
 
-
 	// get bin index for each image pixel, store it in binPerPixelImg
 	getBinPerPixel(binPerPixelImg, inputImg, numBinsPerChannel, numUsedBins);
 
@@ -493,9 +317,7 @@ int init(char * imgFileName)
 	
 	myGraph = new GraphType(/*estimated # of nodes*/ inputImg.rows * inputImg.cols + numUsedBins, 
 		/*estimated # of edges=11 spatial neighbors and one link to auxiliary*/ 12 * inputImg.rows * inputImg.cols); 
-	GraphType::node_id currNodeId = myGraph -> add_node((int)inputImg.cols * inputImg.rows + numUsedBins); 
-			
-	
+	GraphType::node_id currNodeId = myGraph -> add_node((int)inputImg.cols * inputImg.rows + numUsedBins);
 
 	for(int i=0; i<inputImg.rows; i++)
 	{
@@ -566,7 +388,6 @@ int init(char * imgFileName)
 			myGraph -> add_edge(currNodeId, (GraphType::node_id)(currBin + inputImg.rows * inputImg.cols),
 				/* capacities */ (int) ceil(INT32_CONST*bha_slope+ 0.5), (int)ceil(INT32_CONST*bha_slope + 0.5));
 		}
-
 	}
 	
 	return 0;
@@ -578,7 +399,6 @@ void getBinPerPixel(Mat & binPerPixelImg, Mat & inputImg, int numBinsPerChannel,
 	// this vector is used to throw away bins that were not used
 	vector<int> occupiedBinNewIdx((int)pow((double)numBinsPerChannel,(double)3),-1);
 	
-
 	// go over the image
 	int newBinIdx = 0;
 	for(int i=0; i<inputImg.rows; i++)
@@ -603,31 +423,25 @@ void getBinPerPixel(Mat & binPerPixelImg, Mat & inputImg, int numBinsPerChannel,
 			}
 			// if we saw this bin already, it has the new index
 			binPerPixelImg.at<float>(i,j) = (float)occupiedBinNewIdx[bin];
-			
-        //cout << bin << endl;
 		}
 
 		double maxBin;
-		minMaxLoc(binPerPixelImg,NULL,&maxBin);
+		minMaxLoc(binPerPixelImg, NULL,&maxBin);
 		numUsedBins = (int) maxBin + 1;
 
 		occupiedBinNewIdx.clear();
-		cout << "Num occupied bins:" << numUsedBins<< endl;
-
+		cout << "Num occupied bins:" << numUsedBins << endl;
 }
 
 // compute the variance of image edges between neighbors
 void getEdgeVariance(Mat & inputImg, Mat & showEdgesImg, float & varianceSquared)
 {
-
-
 	varianceSquared = 0;
 	int counter = 0;
 	for(int i=0; i<inputImg.rows; i++)
 	{
 		for(int j=0; j<inputImg.cols; j++) 
 		{
-			
 			// You can now access the pixel value with cv::Vec3b
 			float b = (float)inputImg.at<Vec3b>(i,j)[0];
 			float g = (float)inputImg.at<Vec3b>(i,j)[1];
@@ -654,15 +468,13 @@ void getEdgeVariance(Mat & inputImg, Mat & showEdgesImg, float & varianceSquared
 			}
 		}
 	}
-	varianceSquared/=counter;
+	varianceSquared /= counter;
 
 	// just for visualization
 	for(int i=0; i<inputImg.rows; i++)
 	{
 		for(int j=0; j<inputImg.cols; j++) 
 		{
-			
-
 			float edgeStrength = 0;
 			// You can now access the pixel value with cv::Vec3b
 			float b = (float)inputImg.at<Vec3b>(i,j)[0];
@@ -709,7 +521,6 @@ void getColorSepE(int & colorSep_E, int & hardConstraints_E)
 	colorSep_E = 0;
 	hardConstraints_E = 0;
 
-
 	// copy the segmentation results on to the result images
 	for(int i=0; i<inputImg.rows; i++)
 	{
@@ -734,8 +545,6 @@ void getColorSepE(int & colorSep_E, int & hardConstraints_E)
 
 				if (myGraph->what_segment((GraphType::node_id)auxNodeId) == GraphType::SINK)
 					colorSep_E += (int) ceil(INT32_CONST*bha_slope+ 0.5);
-
-
 			}
 			// if it is background -
 			else
@@ -747,19 +556,7 @@ void getColorSepE(int & colorSep_E, int & hardConstraints_E)
 				}
 				if (myGraph->what_segment((GraphType::node_id)auxNodeId) == GraphType::SOURCE)
 					colorSep_E += (int) ceil(INT32_CONST*bha_slope+ 0.5);
-
-				
 			}
 		}
 	}
 }
-
-
-
-/*
-*******************************
-Mat myMat(size(3, 3), CV_32FC2);
-
-myMat.ptr<float>(y)[2*x]; // first channel
-myMat.ptr<float>(y)[2*x+1]; // second channel
-*/
