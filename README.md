@@ -13,6 +13,11 @@ changes to allow it to be used in an automated way in line with my research:
    "<input file>_segmentated.png").
 5. Now unnecesary code has been removed, files restructured.
 
+## Download
+If you're just interested in running the program without modifications, [prebuilt binaries are
+available for 32 bit Windows](#TODO). The [Microsoft Visual Studio 2015 C++ redistributible](
+https://www.microsoft.com/en-ca/download/details.aspx?id=48145) is required.
+
 ## Sample usage
 This example uses the included sample files, "3063.jpg" and "3063-strokes.png":
 
