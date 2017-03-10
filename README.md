@@ -1,3 +1,5 @@
+Original code and more details on the project and algorithm can be found here: http://vision.csd.uwo.ca/code/#OneCut_with_Seeds
+
 ## What is this?
 It's a modification of the OneCut semi-automatic image segmentation program created by Lena Gorelick
 (see README-original.txt). The original program was a GUI utility that was entirely standalone and
