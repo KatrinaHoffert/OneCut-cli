@@ -102,7 +102,6 @@
 
 #include "graph.h"
 
-
 using namespace std;
 using namespace cv;
 
@@ -125,6 +124,9 @@ float bha_slope = 0.5f;
 int numBinsPerChannel = 16;
 float EDGE_STRENGTH_WEIGHT = 0.95f;
 
+int fgLabel = 1;
+int bgLabel = 2;
+
 
 const float INT32_CONST = 1000;
 const float HARD_CONSTRAINT_CONST = 1000;
@@ -138,6 +140,7 @@ const int NEIGHBORHOOD = NEIGHBORHOOD_4_TYPE;
 //************************************
 // F u n c t i o n     d e c l a r a t i o n s 
 
+void printHelp();
 // init all images/vars
 int  init(char * imgFileName);
 // clear everything before closing
@@ -164,37 +167,51 @@ GraphType *myGraph;
 
 int main(int argc, char *argv[])
 {
-    if( argc > 4 || argc < 2)
+    char * imgFileName = NULL;
+    char * strokesFileName = NULL;
+
+    for(int arg = 1; arg < argc; ++arg)
     {
-     cout <<" Usage: OneCut ImageToSegment [numBinsPerChannel colorSep_slope]" << endl;
-     return -1;
+        if (argv[arg] == string("--bins") && argc > arg + 1) {
+            numBinsPerChannel = atoi(argv[++arg]);
+        }
+        else if (argv[arg] == string("--slope") && argc > arg + 1) {
+            bha_slope = (float)atof(argv[++arg]);
+        }
+        else if (argv[arg] == string("--fg-label") && argc > arg + 1) {
+            fgLabel = atoi(argv[++arg]);
+        }
+        else if (argv[arg] == string("--bg-label") && argc > arg + 1) {
+            bgLabel = atoi(argv[++arg]);
+        }
+        else if (argv[arg] == string("--help")) {
+            printHelp();
+            return 0;
+        }
+        else if (!imgFileName) {
+            imgFileName = argv[arg];
+        }
+        else if (!strokesFileName) {
+            strokesFileName = argv[arg];
+        }
+        else {
+            cout << "Invalid argument " << argv[arg] << endl;
+        }
     }
-	if (argc >= 3)
-	{
-		// get the second arg
-		String numBinsStr(argv[2]);
 
-		// convert to int 
-		numBinsPerChannel = atoi(numBinsStr.c_str());
-	    cout << "Using " << numBinsPerChannel <<  " bins per channel " << endl; 
-		if (argc >=4)
-		{
-			//get third argument
-			String bhaSlopeStr(argv[3]);
-			bha_slope = (float)atof(bhaSlopeStr.c_str());
-			cout << "Using colorSep_slope  = " << bha_slope << endl;
-		}
-		else
-			cout << "Using default colorSep_slope = " << bha_slope << endl; 
-	}
-	else
-	{
-		cout << "Using default " << numBinsPerChannel <<  " bins per channel " << endl; 
-		cout << "Using default colorSep_slope = " << bha_slope << endl; 
-	}
-	// get img name parameter
-	char * imgFileName = argv[1];
-
+    // Invalid arguments
+    if (!imgFileName || !strokesFileName)
+    {
+        cout << "Invalid arguments" << endl << endl;
+        printHelp();
+        return -1;
+    }
+    
+    cout << "Input image: " << imgFileName << endl;
+    cout << "Strokes file: " << strokesFileName << endl;
+    cout << "FG label: " << fgLabel << ", BG label: " << bgLabel << endl;
+	cout << "Using " << numBinsPerChannel <<  " bins per channel " << endl; 
+	cout << "Using colorSep_slope = " << bha_slope << endl;
 	
 	if (init(imgFileName)==-1)
 	{
@@ -202,16 +219,15 @@ int main(int argc, char *argv[])
 		return -1;
 	}
     
-	cout << "if there are scribbles from before, load them" << endl;
 	if (loadScribbles(imgFileName, fgScribbleMask, bgScribbleMask)==-1)
 	{
-		cout <<  "could not load scribbles" << std::endl ;
-		cout <<  "running without scribbles" << std::endl;
-		
-	
+		cout <<  "Could not load scribbles" << std::endl;
+        return -1;
 	}
 
-	cout << "setting the hard constraints..." << endl;
+    // Segment
+    cout << "\n--- Segmenting ---" << endl;
+	cout << "Setting the hard constraints..." << endl;
 	for(int i=0; i<inputImg.rows; i++)
 	{
 		for(int j=0; j<inputImg.cols; j++) 
@@ -226,9 +242,9 @@ int main(int argc, char *argv[])
 				myGraph->add_tweights(currNodeId,0,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5));
 		}
 	}
-	cout << "maxflow..." << endl;
+	cout << "Maxflow..." << endl;
 	int flow = myGraph -> maxflow();
-	cout << "done maxflow..." << flow << endl;
+	cout << "Done maxflow..." << flow << endl;
 
 	int colorSep_E, hardConstraints_E;
 	getColorSepE(colorSep_E, hardConstraints_E);
@@ -271,6 +287,15 @@ int main(int argc, char *argv[])
     imwrite(buff, segMask);
 	
     return 0;
+}
+
+void printHelp() {
+    cout << "Usage: OneCut imageToSegment strokesFile [OPTIONS]" << endl;
+    cout << endl;
+    cout << "--fg-label x  : Label used for the foreground in the strokes file" << endl;
+    cout << "--bg-label x  : Label used for the background in the strokes file" << endl;
+    cout << "--bins x  :  Number of bins per channel" << endl;
+    cout << "--slope x  :  Color separator slope" << endl;
 }
 
 // mouse listener
