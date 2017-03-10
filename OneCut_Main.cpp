@@ -211,144 +211,64 @@ int main(int argc, char *argv[])
 	
 	}
 
-
-	cout << "Use the following Short Keys:" << endl;
-	cout << "	'q' - quit" << endl;
-	cout << "	's' - segment" << endl;
-	cout << "	'r' - reset (removes all strokes and clears all results)" << endl;
-	cout << "	'k' - keep the scribbles and the segmentation" << endl;
-	cout << "	'l' - load the scribbles" << endl;
-	cout << "	'+' - increase brush stroke radius" << endl;
-	cout << "	'-' - decrease brush stroke radius" << endl;
-	cout << "	'right mouse button drag' - draw blue scribble" << endl;
-	cout << "	'left mouse button drag' - draw red scribble" << endl;
-
-	
-	// Wait for a keystroke in the window
-    for (;;)
+	cout << "setting the hard constraints..." << endl;
+	for(int i=0; i<inputImg.rows; i++)
 	{
-		char key = waitKey(0);                          
-		switch (key)
+		for(int j=0; j<inputImg.cols; j++) 
 		{
-			case 'q':
-				cout << "goodbye" << endl;
-				destroyAll();
-				return 0;
-			case '-':
-				if (scribbleRadius > 2)
-					scribbleRadius --;
-				cout << "current radius is " << scribbleRadius << endl;
-				break;
-			case '+':
-				if (scribbleRadius < 100)
-					scribbleRadius ++;
-				cout << "current radius is " << scribbleRadius << endl;
-				break;
-			case 's':
-			{
-				cout << "setting the hard constraints..." << endl;
-				for(int i=0; i<inputImg.rows; i++)
-				{
-					for(int j=0; j<inputImg.cols; j++) 
-					{
-						// this is the node id for the current pixel
-						GraphType::node_id currNodeId = i * inputImg.cols + j;
+			// this is the node id for the current pixel
+			GraphType::node_id currNodeId = i * inputImg.cols + j;
 	
-						// add hard constraints based on scribbles
-						if (fgScribbleMask.at<uchar>(i,j) == 255)
-							myGraph->add_tweights(currNodeId,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5),0);
-						else if (bgScribbleMask.at<uchar>(i,j) == 255)
-							myGraph->add_tweights(currNodeId,0,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5));
-					}
-				}
-				cout << "maxflow..." << endl;
-				int flow = myGraph -> maxflow();
-				cout << "done maxflow..." << flow << endl;
+			// add hard constraints based on scribbles
+			if (fgScribbleMask.at<uchar>(i,j) == 255)
+				myGraph->add_tweights(currNodeId,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5),0);
+			else if (bgScribbleMask.at<uchar>(i,j) == 255)
+				myGraph->add_tweights(currNodeId,0,(int)ceil(INT32_CONST * HARD_CONSTRAINT_CONST + 0.5));
+		}
+	}
+	cout << "maxflow..." << endl;
+	int flow = myGraph -> maxflow();
+	cout << "done maxflow..." << flow << endl;
 
-				int colorSep_E, hardConstraints_E;
-				getColorSepE(colorSep_E, hardConstraints_E);
-				cout << "Hard Constraints violation cost: " << hardConstraints_E << endl;
-				cout << "Color Sep Term: " << colorSep_E << endl;
-				cout << "Edge cost: " << flow - colorSep_E - hardConstraints_E << endl;
+	int colorSep_E, hardConstraints_E;
+	getColorSepE(colorSep_E, hardConstraints_E);
+	cout << "Hard Constraints violation cost: " << hardConstraints_E << endl;
+	cout << "Color Sep Term: " << colorSep_E << endl;
+	cout << "Edge cost: " << flow - colorSep_E - hardConstraints_E << endl;
 
-				// this is where we store the results
-				segMask = 0;
-				inputImg.copyTo(segShowImg);
-				//inputImg.copyTo(showImg);
+	// this is where we store the results
+	segMask = 0;
+	inputImg.copyTo(segShowImg);
+	//inputImg.copyTo(showImg);
 
-				// empty scribble masks are ready to record additional scribbles for additional hard constraints
-				// to be used next time
-				fgScribbleMask = 0;
-				bgScribbleMask = 0;
+	// empty scribble masks are ready to record additional scribbles for additional hard constraints
+	// to be used next time
+	fgScribbleMask = 0;
+	bgScribbleMask = 0;
 
-				// copy the segmentation results on to the result images
-				for (int i = 0; i<inputImg.rows * inputImg.cols; i++)
-				{
-					// if it is foreground - color blue
-					if (myGraph->what_segment((GraphType::node_id)i ) == GraphType::SOURCE)
-					{
-						segMask.at<uchar>(i/inputImg.cols, i%inputImg.cols) = 255;
-						(uchar)segShowImg.at<Vec3b>(i/inputImg.cols, i%inputImg.cols)[2] =  200;
-					}
-					// if it is background - color red
-					else
-					{
-						segMask.at<uchar>(i/inputImg.cols, i%inputImg.cols) = 0;
-						(uchar)segShowImg.at<Vec3b>(i/inputImg.cols, i%inputImg.cols)[0] =  200;
-					}
-				}
-
-				imshow("Segmentation Mask", segMask);
-				imshow("Segmentation Image", segShowImg);
-				break;
-
-			}
-			case 'r':
-			{
-				cout << "resetting" << endl;
-				destroyAll();
-				if (init(imgFileName)==-1)
-				{
-					cout <<  "could not initialize" << std::endl ;
-					return -1;
-				}
-				break;
-			}
-			// keep the scribbles
-			case 'k': 
-			{
-				cout << "keeping scribbles for later" << endl;
-				if (keepScribbles(imgFileName, fgScribbleMaskAll, bgScribbleMaskAll, segMask, bha_slope, numBinsPerChannel, EDGE_STRENGTH_WEIGHT)==-1)
-				{
-					cout <<  "could not save scribbles" << std::endl ;
-					return -1;
-				}
-				break;
-			}
-			// load scribbles
-			case 'l':
-			{
-				cout << "resetting" << endl;
-				destroyAll();
-				if (init(imgFileName)==-1)
-				{
-					cout <<  "could not initialize" << std::endl ;
-					return -1;
-				}
-
-				cout << "load scribbles from before" << endl;
-				if (loadScribbles(imgFileName, fgScribbleMask, bgScribbleMask)==-1)
-				{
-					cout <<  "could not load scribbles" << std::endl ;
-					cout <<  "running without scribbles" << std::endl ;
-				}
-				
-
-				break;
-			}
+	// copy the segmentation results on to the result images
+	for (int i = 0; i<inputImg.rows * inputImg.cols; i++)
+	{
+		// if it is foreground - color blue
+		if (myGraph->what_segment((GraphType::node_id)i ) == GraphType::SOURCE)
+		{
+			segMask.at<uchar>(i/inputImg.cols, i%inputImg.cols) = 255;
+			(uchar)segShowImg.at<Vec3b>(i/inputImg.cols, i%inputImg.cols)[2] =  200;
+		}
+		// if it is background - color red
+		else
+		{
+			segMask.at<uchar>(i/inputImg.cols, i%inputImg.cols) = 0;
+			(uchar)segShowImg.at<Vec3b>(i/inputImg.cols, i%inputImg.cols)[0] =  200;
 		}
 	}
 
+    // Write the segmentation mask to a file
+    char buff[256];
+    buff[0] = '\0';
+    strncat(buff, imgFileName, (unsigned)(strlen(imgFileName) - 4));
+    strcat(buff, "_segmented.png");
+    imwrite(buff, segMask);
 	
     return 0;
 }
