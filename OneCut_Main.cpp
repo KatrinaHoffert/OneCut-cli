@@ -326,11 +326,6 @@ static void onMouse( int event, int x, int y, int, void* )
 		}
 
 	}
-	
-	
-	imshow("Scribble Image", showImg);
-	imshow("fg mask", fgScribbleMask);
-	imshow("bg mask", bgScribbleMask);
 }
 
 // clear everything before closing
@@ -437,11 +432,6 @@ int loadScribbles(char * imgFileName, Mat & fgScribbleMask, Mat & bgScribbleMask
 	bgScribbleMask.copyTo(bgScribbleMaskAll);
 	showImg.setTo(Scalar(0,0,255),fgScribbleMask);
 	showImg.setTo(Scalar(255,0,0),bgScribbleMask);
-
-
-	imshow("Scribble Image", showImg);
-	imshow("fg mask", fgScribbleMask);
-	imshow("bg mask", bgScribbleMask);
 	
 
 
@@ -491,41 +481,6 @@ int init(char * imgFileName)
 
 	// compute the variance of image edges between neighbors
 	getEdgeVariance(inputImg, showEdgesImg, varianceSquared);
-
-	
-
-	// Create a window for display.
-    namedWindow( "Input Image", CV_WINDOW_AUTOSIZE );
-	namedWindow( "Scribble Image", CV_WINDOW_AUTOSIZE);
-	namedWindow("Bin Per Pixel", CV_WINDOW_AUTOSIZE );
-	namedWindow("Edges", CV_WINDOW_AUTOSIZE );
-	namedWindow("Segmentation Mask",CV_WINDOW_AUTOSIZE);
-	namedWindow("Segmentation Image",CV_WINDOW_AUTOSIZE);
-	namedWindow( "fg mask", CV_WINDOW_AUTOSIZE );
-	namedWindow( "bg mask", CV_WINDOW_AUTOSIZE );
-
-
-	//namedWindow("Input Image", CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
-
-
-	// Show our image inside it.
-    imshow( "Input Image", inputImg );                        
-	imshow( "Scribble Image", showImg );  
-	imshow("Segmentation Mask", segMask);
-	imshow("Segmentation Image", segShowImg);
-	imshow("fg mask", fgScribbleMask);
-	imshow("bg mask", bgScribbleMask);
-	
-
-	moveWindow("Scribble Image", 1,1);
-	moveWindow("Input Image", inputImg.cols + 50,1);
-	moveWindow("Bin Per Pixel", 2*(inputImg.cols + 50),1);
-	moveWindow("Edges", 2*(inputImg.cols + 55),1);
-	
-
-	// set the callback on mouse
-	setMouseCallback("Scribble Image", onMouse, 0);
-
 	
 	myGraph = new GraphType(/*estimated # of nodes*/ inputImg.rows * inputImg.cols + numUsedBins, 
 		/*estimated # of edges=11 spatial neighbors and one link to auxiliary*/ 12 * inputImg.rows * inputImg.cols); 
@@ -646,7 +601,6 @@ void getBinPerPixel(Mat & binPerPixelImg, Mat & inputImg, int numBinsPerChannel,
 		double maxBin;
 		minMaxLoc(binPerPixelImg,NULL,&maxBin);
 		numUsedBins = (int) maxBin + 1;
-		imshow("Bin Per Pixel", binPerPixelImg/maxBin);
 
 		occupiedBinNewIdx.clear();
 		cout << "Num occupied bins:" << numUsedBins<< endl;
@@ -738,7 +692,6 @@ void getEdgeVariance(Mat & inputImg, Mat & showEdgesImg, float & varianceSquared
 	Point maxPoint;
 	minMaxLoc(showEdgesImg,NULL,&maxEdge, NULL, &maxPoint);
 	//cout << showEdgesImg.at<float>(maxPoint) << endl;
-	imshow("Edges", showEdgesImg/maxEdge);
 
 }
 
